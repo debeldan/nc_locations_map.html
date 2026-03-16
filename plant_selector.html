@@ -62,6 +62,12 @@ a{color:inherit}
 .card-colors{display:flex;gap:3px;align-items:center;flex-wrap:wrap}
 .color-dot{width:11px;height:11px;border-radius:50%;border:1px solid rgba(0,0,0,0.15)}
 .card-desc{font-size:0.78rem;color:#666;line-height:1.4;padding:0 14px 12px}
+/* Card images */
+.card-img-wrap{width:100%;height:160px;overflow:hidden;background:#e8f0e4;position:relative;flex-shrink:0}
+.card-img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity 0.4s}
+.card-img.loaded{opacity:1}
+.card-img-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2.8rem;color:#b0c8a8;pointer-events:none;transition:opacity 0.4s}
+.card-img.loaded~.card-img-placeholder,.card-img-placeholder.hidden{opacity:0}
 /* No results */
 #no-results{display:none;text-align:center;padding:60px 20px;color:#888}
 #no-results h3{font-size:1.2rem;margin-bottom:8px;color:#555}
@@ -420,6 +426,40 @@ const COLOR_HEX = {red:'#e53935',pink:'#e91e63',orange:'#ff6f00',yellow:'#fdd835
 const SUN_ICON = {'full-sun':'☀️','partial-shade':'⛅','full-shade':'🌒'};
 const WATER_ICON = {low:'💧',medium:'💧💧',high:'💧💧💧'};
 const SIZE_LABEL = {'ground-cover':'<1ft','small':'1-3ft','medium':'3-8ft','large':'8-20ft','tree':'20ft+'};
+const TYPE_EMOJI = {tree:'🌳',shrub:'🌿',perennial:'🌸',annual:'🌼',grass:'🌾',vine:'🍃',groundcover:'🍀',bulb:'🌷'};
+
+// Wikipedia image cache
+const imgCache = new Map();
+
+async function fetchWikiImage(botanical) {
+  if (imgCache.has(botanical)) return imgCache.get(botanical);
+  const title = botanical.split(' ').slice(0,2).join('_');
+  try {
+    const r = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&format=json&pithumbsize=400&origin=*`);
+    const d = await r.json();
+    const page = Object.values(d.query.pages)[0];
+    const src = page?.thumbnail?.source || null;
+    imgCache.set(botanical, src);
+    return src;
+  } catch { imgCache.set(botanical, null); return null; }
+}
+
+function loadVisibleImages() {
+  document.querySelectorAll('.card-img[data-src]').forEach(img => {
+    const wrap = img.closest('.card-img-wrap');
+    const rect = wrap.getBoundingClientRect();
+    if (rect.top < window.innerHeight + 200) {
+      const botanical = img.dataset.src;
+      delete img.dataset.src;
+      fetchWikiImage(botanical).then(src => {
+        if (src) {
+          img.onload = () => { img.classList.add('loaded'); };
+          img.src = src;
+        }
+      });
+    }
+  });
+}
 
 function renderResults(plants) {
   const grid = document.getElementById('grid');
@@ -435,7 +475,13 @@ function renderResults(plants) {
     const zoneStr = minZ === maxZ ? `Zone ${minZ}` : `Zones ${minZ}–${maxZ}`;
     const colors = p.flowerColors.map(c => `<span class="color-dot" style="background:${COLOR_HEX[c]}" title="${c}"></span>`).join('');
     const sunIcons = p.sun.map(s => SUN_ICON[s]).join(' ');
+    const cachedSrc = imgCache.get(p.botanical);
+    const imgAttr = cachedSrc ? `src="${cachedSrc}" class="card-img loaded"` : `data-src="${p.botanical}" class="card-img"`;
     return `<div class="card">
+  <div class="card-img-wrap">
+    <img ${imgAttr} alt="${p.name}">
+    <div class="card-img-placeholder${cachedSrc ? ' hidden' : ''}">${TYPE_EMOJI[p.type] || '🌿'}</div>
+  </div>
   <div class="card-top">
     <div class="card-name">${p.name}</div>
     <div class="card-botanical">${p.botanical}</div>
@@ -456,6 +502,8 @@ function renderResults(plants) {
   <div class="card-desc">${p.description}</div>
 </div>`;
   }).join('');
+  // Load images in viewport immediately, then on scroll
+  loadVisibleImages();
 }
 
 function updateCount(n) {
@@ -499,6 +547,9 @@ function clearAll() {
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
 }
+
+// Scroll-based lazy loading
+document.getElementById('main').addEventListener('scroll', loadVisibleImages, {passive: true});
 
 // Init
 applyFilters();
