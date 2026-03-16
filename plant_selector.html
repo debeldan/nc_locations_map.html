@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plant Selector</title>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Lato',sans-serif;background:#f5f2ec;color:#333;min-height:100vh}
+a{color:inherit}
+/* Layout */
+#app{display:flex;min-height:100vh}
+#sidebar{width:280px;min-width:280px;background:#fff;border-right:1px solid #ddd;padding:16px;overflow-y:auto;position:sticky;top:0;height:100vh}
+#main{flex:1;padding:20px;overflow-y:auto}
+/* Header */
+#sidebar-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+#sidebar-header h2{font-family:'Playfair Display',serif;color:#3a6b35;font-size:1.2rem}
+#clear-btn{background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:0.8rem}
+#clear-btn:hover{background:#c8e6c9}
+#match-count{font-size:0.85rem;color:#666;margin-bottom:12px;padding:6px 8px;background:#f0f7ee;border-radius:4px;border-left:3px solid #66bb6a}
+/* Filter sections */
+.filter-section{margin-bottom:14px;border-bottom:1px solid #eee;padding-bottom:14px}
+.filter-section:last-child{border-bottom:none}
+.filter-title{font-weight:700;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;color:#5a8a55;margin-bottom:8px}
+.filter-options{display:flex;flex-wrap:wrap;gap:4px}
+.filter-cb{display:none}
+.filter-label{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border:1px solid #ccc;border-radius:20px;font-size:0.78rem;cursor:pointer;background:#fff;transition:all 0.15s;user-select:none;white-space:nowrap}
+.filter-label:hover{border-color:#66bb6a;background:#f0f7ee}
+.filter-cb:checked+.filter-label{background:#3a6b35;color:#fff;border-color:#3a6b35}
+.color-swatch{width:10px;height:10px;border-radius:50%;border:1px solid rgba(0,0,0,0.2);flex-shrink:0}
+/* Main header */
+#main-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+#main-header h1{font-family:'Playfair Display',serif;color:#3a6b35;font-size:1.6rem;flex:1}
+#search-box{padding:8px 12px;border:1px solid #ccc;border-radius:20px;font-size:0.9rem;width:220px;outline:none}
+#search-box:focus{border-color:#66bb6a}
+#sort-sel{padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-size:0.85rem;outline:none;background:#fff}
+/* Active filter tags */
+#active-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;min-height:0}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:12px;font-size:0.78rem;color:#2e7d32}
+.tag-x{cursor:pointer;font-weight:bold;opacity:0.7}
+.tag-x:hover{opacity:1}
+/* Results count */
+#results-count{font-size:0.85rem;color:#666;margin-bottom:12px}
+/* Grid */
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+/* Card */
+.card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden;display:flex;flex-direction:column;transition:box-shadow 0.2s}
+.card:hover{box-shadow:0 4px 12px rgba(0,0,0,0.12)}
+.card-top{padding:14px 14px 8px;flex:1}
+.card-name{font-weight:700;font-size:0.95rem;color:#222;margin-bottom:2px}
+.card-botanical{font-style:italic;font-size:0.78rem;color:#888;margin-bottom:8px}
+.card-badges{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.badge{padding:2px 7px;border-radius:10px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em}
+.badge-type{background:#e8f5e9;color:#2e7d32}
+.badge-deer{background:#fff3e0;color:#e65100}
+.badge-native{background:#e3f2fd;color:#1565c0}
+.badge-evergreen{background:#f3e5f5;color:#6a1b9a}
+.card-meta{display:flex;flex-wrap:wrap;gap:6px;font-size:0.75rem;color:#555;margin-bottom:8px}
+.meta-item{display:flex;align-items:center;gap:3px}
+.meta-item svg{flex-shrink:0}
+.card-colors{display:flex;gap:3px;align-items:center;flex-wrap:wrap}
+.color-dot{width:11px;height:11px;border-radius:50%;border:1px solid rgba(0,0,0,0.15)}
+.card-desc{font-size:0.78rem;color:#666;line-height:1.4;padding:0 14px 12px}
+/* Card images */
+.card-img-wrap{width:100%;height:160px;overflow:hidden;background:#e8f0e4;position:relative;flex-shrink:0}
+.card-img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity 0.4s}
+.card-img.loaded{opacity:1}
+.card-img-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2.8rem;color:#b0c8a8;pointer-events:none;transition:opacity 0.4s}
+.card-img.loaded~.card-img-placeholder,.card-img-placeholder.hidden{opacity:0}
+/* No results */
+#no-results{display:none;text-align:center;padding:60px 20px;color:#888}
+#no-results h3{font-size:1.2rem;margin-bottom:8px;color:#555}
+/* Mobile */
+#filter-toggle{display:none;padding:8px 16px;background:#3a6b35;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:0.9rem}
+@media(max-width:768px){
+  #app{flex-direction:column}
+  #sidebar{width:100%;min-width:0;height:auto;position:static;display:none}
+  #sidebar.open{display:block}
+  #filter-toggle{display:block;margin-bottom:12px}
+  #main{padding:12px}
+  #main-header{flex-direction:column;align-items:flex-start}
+  #search-box{width:100%}
+}
+/* Color swatches */
+.sw-red{background:#e53935}.sw-pink{background:#e91e63}.sw-orange{background:#ff6f00}
+.sw-yellow{background:#fdd835}.sw-white{background:#f5f5f5}.sw-purple{background:#7b1fa2}
+.sw-blue{background:#1565c0}.sw-lavender{background:#9575cd}.sw-none{background:#bdbdbd}
+/* Zone badge colors */
+.zone-tag{display:inline-block;padding:1px 5px;border-radius:3px;font-size:0.7rem;background:#e8f5e9;color:#2e7d32;margin-right:2px}
+</style>
+</head>
+<body>
+<div id="app">
+<aside id="sidebar">
+  <div id="sidebar-header">
+    <h2>&#127807; Filters</h2>
+    <button id="clear-btn" onclick="clearAll()">Clear All</button>
+  </div>
+  <div id="match-count">Loading...</div>
+  <div class="filter-section">
+    <div class="filter-title">USDA Hardiness Zone</div>
+    <div class="filter-options" id="zone-filters"></div>
+  </div>
+  <div class="filter-section">
+    <div class="filter-title">Sun Exposure</div>
+    <div class="filter-options">
+      <input type="checkbox" class="filter-cb" id="sun-full-sun" data-filter="sun" data-val="full-sun"><label class="filter-label" for="sun-full-sun">&#9728;&#65039; Full Sun</label>
+      <input type="checkbox" class="filter-cb" id="sun-partial-shade" data-filter="sun" data-val="partial-shade"><label class="filter-label" for="sun-partial-shade">&#9925; Partial Shade</label>
+      <input type="checkbox" class="filter-cb" id="sun-full-shade" data-filter="sun" data-val="full-shade"><label class="filter-label" for="sun-full-shade">&#127763; Full Shade</label>
+    </div>
+  </div>
+  <div class="filter-section">
+    <div class="filter-title">Climate</div>
+    <div class="filter-options">
+      <input type="checkbox" class="filter-cb" id="cl-temperate" data-filter="climate" data-val="temperate"><label class="filter-label" for="cl-temperate">Temperate</label>
+      <input type="checkbox" class="filter-cb" id="cl-humid-subtropical" data-filter="climate" data-val="humid-subtropical"><label class="filter-label" for="cl-humid-subtropical">Humid Subtropical</label>
+      <input type="checkbox" class="filter-cb" id="cl-continental" data-filter="climate" data-val="continental"><label class="filter-label" for="cl-continental">Continental</label>
+      <input type="checkbox" class="filter-cb" id="cl-mediterranean" data-filter="climate" data-val="mediterranean"><label class="filter-label" for="cl-mediterranean">Mediterranean</label>
+      <input type="checkbox" class="filter-cb" id="cl-arid" data-filter="climate" data-val="arid"><label class="filter-label" for="cl-arid">Arid/Desert</label>
+      <input type="checkbox" class="filter-cb" id="cl-tropical" data-filter="climate" data-val="tropical"><label class="filter-label" for="cl-tropical">Tropical</label>
+    </div>
+  </div>
+  <div class="filter-section">
+    <div class="filter-title">Flower Color</div>
+    <div class="filter-options">
+      <input type="checkbox" class="filter-cb" id="fc-red" data-filter="flowerColors" data-val="red"><label class="filter-label" for="fc-red"><span class="color-swatch sw-red"></span>Red</label>
+      <input type="checkbox" class="filter-cb" id="fc-pink" data-filter="flowerColors" data-val="pink"><label class="filter-label" for="fc-pink"><span class="color-swatch sw-pink"></span>Pink</label>
+      <input type="checkbox" class="filter-cb" id="fc-orange" data-filter="flowerColors" data-val="orange"><label class="filter-label" for="fc-orange"><span class="color-swatch sw-orange"></span>Orange</label>
+      <input type="checkbox" class="filter-cb" id="fc-yellow" data-filter="flowerColors" data-val="yellow"><label class="filter-label" for="fc-yellow"><span class="color-swatch sw-yellow"></span>Yellow</label>
+      <input type="checkbox" class="filter-cb" id="fc-white" data-filter="flowerColors" data-val="white"><label class="filter-label" for="fc-white"><span class="color-swatch sw-white"></span>White</label>
+      <input type="checkbox" class="filter-cb" id="fc-purple" data-filter="flowerColors" data-val="purple"><label class="filter-label" for="fc-purple"><span class="color-swatch sw-purple"></span>Purple</label>
+      <input type="checkbox" class="filter-cb" id="fc-blue" data-filter="flowerColors" data-val="blue"><label class="filter-label" for="fc-blue"><span class="color-swatch sw-blue"></span>Blue</label>
+      <input type="checkbox" class="filter-cb" id="fc-lavender" data-filter="flowerColors" data-val="lavender"><label class="filter-label" for="fc-lavender"><span class="color-swatch sw-lavender"></span>Lavender</label>
+      <input type="checkbox" class="filter-cb" id="fc-none" data-filter="flowerColors" data-val="none"><label class="filter-label" for="fc-none"><span class="color-swatch sw-none"></span>No Flowers</label>
+    </div>
+  </div>
+  <div class="filter-section">
+    <div class="filter-title">Plant Type</div>
+    <div class="filter-options">
+      <input type="checkbox" class="filter-cb" id="t-tree" data-filter="type" data-val="tree"><label class="filter-label" for="t-tree">&#127795; Tree</label>
+      <input type="checkbox" class="filter-cb" id="t-shrub" data-filter="type" data-val="shrub"><label class="filter-label" for="t-shrub">&#127808; Shrub</label>
+      <input type="checkbox" class="filter-cb" id="t-perennial" data-filter="type" data-val="perennial"><label class="filter-label" for="t-perennial">&#127807; Perennial</label>
+      <input type="checkbox" class="filter-cb" id="t-annual" data-filter="type" data-val="annual"><label class="filter-label" for="t-annual">&#127801; Annual</label>
+      <input type="checkbox" class="filter-cb" id="t-grass" data-filter="type" data-val="grass"><label class="filter-label" for="t-grass">&#127807; Grass</label>
+      <input type="checkbox" class="filter-cb" id="t-vine" data-filter="type" data-val="vine"><label class="filter-label" for="t-vine">&#127810; Vine</label>
+      <input type="checkbox" class="filter-cb" id="t-groundcover" data-filter="type" data-val="groundcover"><label class="filter-label" for="t-groundcover">&#127807; Ground Cover</label>
+      <input type="checkbox" class="filter-cb" id="t-bulb" data-filter="type" data-val="bulb"><label class="filter-label" for="t-bulb">&#127807; Bulb</label>
+    </div>
+  </div>
+  <div class="filter-section">
+    <div class="filter-title">Plant Size</div>
+    <div class="filter-options">
+      <input type="checkbox" class="filter-cb" id="sz-ground-cover" data-filter="size" data-val="ground-cover"><label class="filter-label" for="sz-ground-cover">Ground Cover &lt;1ft</label>
+      <input type="checkbox" class="filter-cb" id="sz-small" data-filter="size" data-val="small"><label class="filter-label" for="sz-small">Small 1-3ft</label>
+      <input type="checkbox" class="filter-cb" id="sz-medium" data-filter="size" data-val="medium"><label class="filter-label" for="sz-medium">Medium 3-8ft</label>
+      <input type="checkbox" class="filter-cb" id="sz-large" data-filter="size" data-val="large"><label class="filter-label" for="sz-large">Large 8-20ft</label>
+      <input type="checkbox" class="filter-cb" id="sz-tree" data-filter="size" data-val="tree"><label class="filter-label" for="sz-tree">Tree 20ft+</label>
+    </div>
+  </div>
+  <div class="filter-section">
+    <div class="filter-title">Water Needs</div>
+    <div class="filter-options">
+      <input type="checkbox" class="filter-cb" id="w-low" data-filter="waterNeeds" data-val="low"><label class="filter-label" for="w-low">&#128167; Low/Drought</label>
+      <input type="checkbox" class="filter-cb" id="w-medium" data-filter="waterNeeds" data-val="medium"><label class="filter-label" for="w-medium">&#128167;&#128167; Medium</label>
+      <input type="checkbox" class="filter-cb" id="w-high" data-filter="waterNeeds" data-val="high"><label class="filter-label" for="w-high">&#128167;&#128167;&#128167; High</label>
+    </div>
+  </div>
+  <div class="filter-section">
+    <div class="filter-title">Extras</div>
+    <div class="filter-options">
+      <input type="checkbox" class="filter-cb" id="x-deer" data-filter="extras" data-val="deer"><label class="filter-label" for="x-deer">&#129420; Deer Resistant</label>
+      <input type="checkbox" class="filter-cb" id="x-evergreen" data-filter="extras" data-val="evergreen"><label class="filter-label" for="x-evergreen">&#127809; Evergreen</label>
+      <input type="checkbox" class="filter-cb" id="x-native" data-filter="extras" data-val="native"><label class="filter-label" for="x-native">&#127482;&#127480; Native to NA</label>
+    </div>
+  </div>
+</aside>
+<main id="main">
+  <button id="filter-toggle" onclick="toggleSidebar()">&#9776; Filters</button>
+  <div id="main-header">
+    <h1>Plant Selector</h1>
+    <input type="text" id="search-box" placeholder="&#128269; Search plants..." oninput="applyFilters()">
+    <select id="sort-sel" onchange="applyFilters()">
+      <option value="name">Sort: A-Z</option>
+      <option value="zone">Sort: by Zone</option>
+      <option value="type">Sort: by Type</option>
+    </select>
+  </div>
+  <div id="active-tags"></div>
+  <div id="results-count"></div>
+  <div id="grid"></div>
+  <div id="no-results"><h3>No plants match your filters</h3><p>Try removing some filters or broadening your search.</p></div>
+</main>
+</div>
+<script>
+const PLANTS = [
+{id:1,name:"Sugar Maple",botanical:"Acer saccharum",type:"tree",zones:[3,4,5,6,7,8],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["none"],size:"tree",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Iconic shade tree with brilliant fall foliage in orange, red, and gold. Important source of maple syrup."},
+{id:2,name:"Red Maple",botanical:"Acer rubrum",type:"tree",zones:[3,4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental","humid-subtropical"],flowerColors:["red"],size:"tree",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Fast-growing native tree with striking red flowers in early spring and vivid fall color."},
+{id:3,name:"Eastern Redbud",botanical:"Cercis canadensis",type:"tree",zones:[4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","humid-subtropical"],flowerColors:["pink","purple"],size:"large",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Small ornamental tree that bursts with rosy-pink flowers in early spring before leaves emerge."},
+{id:4,name:"Flowering Dogwood",botanical:"Cornus florida",type:"tree",zones:[5,6,7,8,9],sun:["partial-shade","full-sun"],climate:["temperate","humid-subtropical"],flowerColors:["white","pink"],size:"large",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Beloved four-season tree with showy spring bracts, summer berries, and brilliant fall foliage."},
+{id:5,name:"American Sycamore",botanical:"Platanus occidentalis",type:"tree",zones:[4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","humid-subtropical"],flowerColors:["none"],size:"tree",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Massive native tree with distinctive mottled white-and-brown bark; excellent for large landscapes."},
+{id:6,name:"Bald Cypress",botanical:"Taxodium distichum",type:"tree",zones:[4,5,6,7,8,9,10],sun:["full-sun"],climate:["humid-subtropical","temperate"],flowerColors:["none"],size:"tree",waterNeeds:"high",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Deciduous conifer with feathery foliage that turns russet in fall; tolerates wet or dry soils."},
+{id:7,name:"Live Oak",botanical:"Quercus virginiana",type:"tree",zones:[7,8,9,10,11],sun:["full-sun"],climate:["humid-subtropical","tropical"],flowerColors:["none"],size:"tree",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Magnificent spreading evergreen oak; iconic of the American South with strong drought tolerance."},
+{id:8,name:"Tulip Poplar",botanical:"Liriodendron tulipifera",type:"tree",zones:[4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","humid-subtropical"],flowerColors:["yellow","orange"],size:"tree",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Tallest native hardwood in eastern North America with attractive tulip-shaped flowers in spring."},
+{id:9,name:"Southern Magnolia",botanical:"Magnolia grandiflora",type:"tree",zones:[6,7,8,9,10],sun:["full-sun","partial-shade"],climate:["humid-subtropical"],flowerColors:["white"],size:"tree",waterNeeds:"medium",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Stately evergreen tree with huge fragrant white flowers; a classic of Southern gardens."},
+{id:10,name:"Sweetbay Magnolia",botanical:"Magnolia virginiana",type:"tree",zones:[5,6,7,8,9,10],sun:["full-sun","partial-shade"],climate:["temperate","humid-subtropical"],flowerColors:["white"],size:"large",waterNeeds:"high",deerResistant:false,evergreen:true,nativeToNorthAmerica:true,description:"Semi-evergreen tree with creamy fragrant flowers; excellent for wet sites and rain gardens."},
+{id:11,name:"Pawpaw",botanical:"Asimina triloba",type:"tree",zones:[5,6,7,8,9],sun:["partial-shade","full-shade"],climate:["temperate","humid-subtropical"],flowerColors:["purple"],size:"large",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native fruit tree with the largest edible fruit in North America; forms clonal colonies in shade."},
+{id:12,name:"Paper Birch",botanical:"Betula papyrifera",type:"tree",zones:[2,3,4,5,6,7],sun:["full-sun","partial-shade"],climate:["continental","temperate"],flowerColors:["none"],size:"tree",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Graceful tree with iconic white peeling bark and golden fall foliage; thrives in cool climates."},
+{id:13,name:"Blue Spruce",botanical:"Picea pungens",type:"tree",zones:[2,3,4,5,6,7,8],sun:["full-sun"],climate:["continental","temperate"],flowerColors:["none"],size:"tree",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Stiff conical evergreen with striking blue-silver needles; very cold-hardy and drought-tolerant once established."},
+{id:14,name:"Eastern White Pine",botanical:"Pinus strobus",type:"tree",zones:[3,4,5,6,7,8],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["none"],size:"tree",waterNeeds:"medium",deerResistant:false,evergreen:true,nativeToNorthAmerica:true,description:"Fast-growing native pine with soft blue-green needles; adaptable to many soils and excellent wildlife habitat."},
+{id:15,name:"Palo Verde",botanical:"Parkinsonia florida",type:"tree",zones:[8,9,10,11],sun:["full-sun"],climate:["arid"],flowerColors:["yellow"],size:"large",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Desert tree with green photosynthetic bark that blooms profusely in spring; extremely drought tolerant."},
+{id:16,name:"Saguaro Cactus",botanical:"Carnegiea gigantea",type:"tree",zones:[9,10,11],sun:["full-sun"],climate:["arid"],flowerColors:["white"],size:"tree",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Iconic columnar cactus of the Sonoran Desert; slow-growing symbol of the American Southwest."},
+{id:17,name:"Crape Myrtle",botanical:"Lagerstroemia indica",type:"tree",zones:[6,7,8,9,10,11],sun:["full-sun"],climate:["humid-subtropical","mediterranean"],flowerColors:["red","pink","white","purple","lavender"],size:"large",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Multi-season small tree with showy summer flowers, colorful fall foliage, and attractive bark."},
+{id:18,name:"Desert Willow",botanical:"Chilopsis linearis",type:"tree",zones:[7,8,9,10,11],sun:["full-sun"],climate:["arid"],flowerColors:["pink","purple","white"],size:"large",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Fast-growing desert tree with fragrant orchid-like flowers all summer; excellent hummingbird plant."},
+{id:19,name:"Buttonbush",botanical:"Cephalanthus occidentalis",type:"shrub",zones:[4,5,6,7,8,9,10],sun:["full-sun","partial-shade"],climate:["temperate","humid-subtropical"],flowerColors:["white"],size:"medium",waterNeeds:"high",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Native shrub with unique spherical white flower heads; essential for pollinators and tolerates wet soils."},
+{id:20,name:"Inkberry",botanical:"Ilex glabra",type:"shrub",zones:[4,5,6,7,8,9],sun:["full-sun","partial-shade","full-shade"],climate:["temperate","humid-subtropical"],flowerColors:["white"],size:"medium",waterNeeds:"medium",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Adaptable native evergreen shrub with small white flowers and black berries; excellent for wet or dry shade."},
+{id:21,name:"Possumhaw Holly",botanical:"Ilex decidua",type:"shrub",zones:[3,4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental","humid-subtropical"],flowerColors:["white"],size:"large",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Deciduous native holly with abundant red berries that persist through winter, providing wildlife food."},
+{id:22,name:"American Beautyberry",botanical:"Callicarpa americana",type:"shrub",zones:[6,7,8,9,10,11],sun:["full-sun","partial-shade"],climate:["humid-subtropical"],flowerColors:["pink","purple"],size:"medium",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Native shrub famous for its striking clusters of brilliant purple berries in late summer and fall."},
+{id:23,name:"Virginia Sweetspire",botanical:"Itea virginica",type:"shrub",zones:[5,6,7,8,9],sun:["full-sun","partial-shade","full-shade"],climate:["temperate","humid-subtropical"],flowerColors:["white"],size:"medium",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Fragrant white flower spikes in summer, plus outstanding burgundy-red fall foliage; adapts to wet or dry soils."},
+{id:24,name:"Mountain Laurel",botanical:"Kalmia latifolia",type:"shrub",zones:[4,5,6,7,8,9],sun:["partial-shade","full-shade"],climate:["temperate"],flowerColors:["white","pink"],size:"large",waterNeeds:"medium",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Stunning native evergreen shrub with intricate pink-and-white flower clusters; state flower of Connecticut."},
+{id:25,name:"Rosemary",botanical:"Salvia rosmarinus",type:"shrub",zones:[7,8,9,10,11],sun:["full-sun"],climate:["mediterranean","arid"],flowerColors:["blue","lavender"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:false,description:"Aromatic evergreen herb-shrub with blue flowers and culinary uses; extremely drought tolerant once established."},
+{id:26,name:"Lavender",botanical:"Lavandula angustifolia",type:"shrub",zones:[5,6,7,8,9],sun:["full-sun"],climate:["mediterranean","temperate"],flowerColors:["lavender","purple"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:false,description:"Fragrant perennial sub-shrub with iconic purple flower spikes; beloved by bees and pollinators."},
+{id:27,name:"Forsythia",botanical:"Forsythia x intermedia",type:"shrub",zones:[4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["yellow"],size:"large",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:false,description:"One of the first shrubs to bloom in spring with masses of bright yellow flowers before leaves emerge."},
+{id:28,name:"Oakleaf Hydrangea",botanical:"Hydrangea quercifolia",type:"shrub",zones:[5,6,7,8,9],sun:["partial-shade","full-shade"],climate:["temperate","humid-subtropical"],flowerColors:["white"],size:"large",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native shrub with bold oak-like leaves, large white flower panicles, and outstanding cinnamon-brown fall color."},
+{id:29,name:"Blue Mist Spirea",botanical:"Caryopteris x clandonensis",type:"shrub",zones:[5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["blue","lavender"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Late-summer bloomer with clusters of soft blue flowers; highly attractive to bees and butterflies."},
+{id:30,name:"Buttonbush",botanical:"Cephalanthus occidentalis",type:"shrub",zones:[4,5,6,7,8,9,10],sun:["full-sun","partial-shade"],climate:["temperate","humid-subtropical"],flowerColors:["white"],size:"medium",waterNeeds:"high",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Native shrub producing perfectly round white flower balls loved by bees; great for wet areas and pond edges."},
+{id:31,name:"Butterfly Bush",botanical:"Buddleja davidii",type:"shrub",zones:[5,6,7,8,9,10],sun:["full-sun"],climate:["temperate","mediterranean"],flowerColors:["purple","pink","white","orange"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Prolific bloomer with fragrant flower cones that attract butterflies all summer; can be invasive in some regions."},
+{id:32,name:"Yaupon Holly",botanical:"Ilex vomitoria",type:"shrub",zones:[7,8,9,10,11],sun:["full-sun","partial-shade","full-shade"],climate:["humid-subtropical"],flowerColors:["white"],size:"large",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Incredibly tough native evergreen with red berries; one of the most adaptable plants in the Southeast."},
+{id:33,name:"Switchgrass",botanical:"Panicum virgatum",type:"grass",zones:[3,4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental","humid-subtropical"],flowerColors:["none"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native prairie grass with airy seedheads and brilliant fall color; tolerates wet or dry soils."},
+{id:34,name:"Little Bluestem",botanical:"Schizachyrium scoparium",type:"grass",zones:[3,4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["none"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native grass turning brilliant orange-red in fall with silvery seed plumes; thrives in dry, poor soils."},
+{id:35,name:"Blue Oat Grass",botanical:"Helictotrichon sempervirens",type:"grass",zones:[4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental","mediterranean"],flowerColors:["none"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:false,description:"Evergreen clump grass with striking blue-gray foliage; excellent accent or edging plant in dry gardens."},
+{id:36,name:"Mexican Feather Grass",botanical:"Nassella tenuissima",type:"grass",zones:[6,7,8,9,10],sun:["full-sun"],climate:["arid","mediterranean"],flowerColors:["none"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Billowing fine-textured grass that moves beautifully in the breeze; excellent for dry sunny gardens."},
+{id:37,name:"Pampas Grass",botanical:"Cortaderia selloana",type:"grass",zones:[7,8,9,10,11],sun:["full-sun"],climate:["mediterranean","temperate"],flowerColors:["white"],size:"large",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Dramatic large grass with huge silvery-white plumes in late summer; caution — can be invasive."},
+{id:38,name:"Purple Coneflower",botanical:"Echinacea purpurea",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["purple","pink"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Beloved native prairie flower with purple-pink daisy blooms and spiky seed heads that feed birds."},
+{id:39,name:"Black-Eyed Susan",botanical:"Rudbeckia fulgida",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental","humid-subtropical"],flowerColors:["yellow","orange"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Cheerful native wildflower with golden-yellow petals and dark centers; extremely easy to grow."},
+{id:40,name:"Blazing Star",botanical:"Liatris spicata",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["purple","lavender"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Upright native perennial with fluffy purple flower spikes blooming top to bottom; magnet for butterflies."},
+{id:41,name:"Blue Wild Indigo",botanical:"Baptisia australis",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["blue","purple"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Long-lived native perennial with blue-violet lupine-like flowers; forms impressive clumps over time."},
+{id:42,name:"Daylily",botanical:"Hemerocallis fulva",type:"perennial",zones:[3,4,5,6,7,8,9,10],sun:["full-sun","partial-shade"],climate:["temperate","continental","humid-subtropical"],flowerColors:["orange","yellow","red","pink"],size:"small",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:false,description:"Tough and adaptable perennial blooming in a rainbow of colors; spreads to form reliable groundcover."},
+{id:43,name:"Hostas",botanical:"Hosta spp.",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["partial-shade","full-shade"],climate:["temperate","continental"],flowerColors:["lavender","white"],size:"small",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:false,description:"Essential shade perennial prized for its bold textured foliage in green, blue, and gold tones."},
+{id:44,name:"Coral Bells",botanical:"Heuchera spp.",type:"perennial",zones:[4,5,6,7,8,9],sun:["partial-shade","full-sun"],climate:["temperate","continental"],flowerColors:["red","pink","white"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Semi-evergreen perennial grown for its stunning foliage colors from burgundy to lime; petite bell flowers."},
+{id:45,name:"Garden Phlox",botanical:"Phlox paniculata",type:"perennial",zones:[4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["pink","white","purple","lavender","red"],size:"medium",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Classic cottage garden perennial with fragrant summer flower clusters in many colors; attracts butterflies."},
+{id:46,name:"Coneflower 'Magnus'",botanical:"Echinacea purpurea 'Magnus'",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["purple","pink"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Award-winning coneflower with large flat petals that stay horizontal rather than drooping; very showy."},
+{id:47,name:"Joe-Pye Weed",botanical:"Eutrochium purpureum",type:"perennial",zones:[4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["pink","purple"],size:"large",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Towering native perennial with vanilla-scented pink-purple flowers beloved by monarch butterflies."},
+{id:48,name:"New England Aster",botanical:"Symphyotrichum novae-angliae",type:"perennial",zones:[3,4,5,6,7,8],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["purple","pink"],size:"medium",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Fall-blooming native aster with masses of small purple-pink flowers; critical late-season pollinator plant."},
+{id:49,name:"Russian Sage",botanical:"Perovskia atriplicifolia",type:"perennial",zones:[4,5,6,7,8,9],sun:["full-sun"],climate:["continental","temperate","arid"],flowerColors:["blue","lavender"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Airy perennial with silver stems and tiny lavender-blue flowers; spectacular in large drifts."},
+{id:50,name:"Catmint",botanical:"Nepeta x faassenii",type:"perennial",zones:[3,4,5,6,7,8],sun:["full-sun","partial-shade"],climate:["temperate","continental","mediterranean"],flowerColors:["lavender","blue"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Fragrant gray-green mounded perennial with lavender-blue flowers beloved by bees; cat-attracting."},
+{id:51,name:"Salvia 'May Night'",botanical:"Salvia x sylvestris 'May Night'",type:"perennial",zones:[4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["purple","blue"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Compact perennial sage with deep violet-purple spikes; excellent pollinator plant that reblooms."},
+{id:52,name:"Sedum 'Autumn Joy'",botanical:"Hylotelephium 'Herbstfreude'",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["pink","red"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Reliable drought-tolerant perennial with flat-topped flower heads turning from pink to russet; attracts bees."},
+{id:53,name:"Bee Balm",botanical:"Monarda didyma",type:"perennial",zones:[4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["red","pink","purple","lavender"],size:"medium",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native perennial with ragged tubular flowers that hummingbirds love; forms vigorous spreading clumps."},
+{id:54,name:"Cardinal Flower",botanical:"Lobelia cardinalis",type:"perennial",zones:[2,3,4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental","humid-subtropical"],flowerColors:["red"],size:"small",waterNeeds:"high",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native perennial with blazing red tubular flowers that are irresistible to hummingbirds; prefers moist soils."},
+{id:55,name:"Yarrow",botanical:"Achillea millefolium",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental","mediterranean"],flowerColors:["yellow","white","pink","red"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Tough native perennial with feathery foliage and flat-topped flower clusters in many colors."},
+{id:56,name:"Coreopsis",botanical:"Coreopsis verticillata",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["yellow","orange"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Long-blooming native perennial with bright yellow or gold daisy flowers all summer; extremely low maintenance."},
+{id:57,name:"Wild Columbine",botanical:"Aquilegia canadensis",type:"perennial",zones:[3,4,5,6,7,8],sun:["partial-shade","full-sun"],climate:["temperate","continental"],flowerColors:["red","yellow"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Delicate native perennial with nodding red-and-yellow spurred flowers; self-seeds freely and attracts hummingbirds."},
+{id:58,name:"Wild Ginger",botanical:"Asarum canadense",type:"groundcover",zones:[3,4,5,6,7,8],sun:["full-shade","partial-shade"],climate:["temperate","continental"],flowerColors:["none"],size:"ground-cover",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native groundcover with heart-shaped leaves forming dense weed-suppressing mats; hidden brown flowers."},
+{id:59,name:"Pachysandra",botanical:"Pachysandra terminalis",type:"groundcover",zones:[4,5,6,7,8,9],sun:["partial-shade","full-shade"],climate:["temperate","continental"],flowerColors:["white"],size:"ground-cover",waterNeeds:"medium",deerResistant:true,evergreen:true,nativeToNorthAmerica:false,description:"Classic evergreen groundcover for deep shade under trees; forms dense weed-suppressing mats."},
+{id:60,name:"Creeping Phlox",botanical:"Phlox subulata",type:"groundcover",zones:[3,4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["pink","white","purple","lavender"],size:"ground-cover",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Native groundcover that becomes a solid carpet of blooms in spring; excellent for slopes and rock gardens."},
+{id:61,name:"Creeping Thyme",botanical:"Thymus serpyllum",type:"groundcover",zones:[3,4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental","mediterranean"],flowerColors:["pink","purple"],size:"ground-cover",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:false,description:"Fragrant herb groundcover that tolerates foot traffic; tiny pink flowers attract bees in summer."},
+{id:62,name:"Vinca Minor",botanical:"Vinca minor",type:"groundcover",zones:[4,5,6,7,8,9],sun:["partial-shade","full-shade","full-sun"],climate:["temperate","continental"],flowerColors:["blue","purple","white"],size:"ground-cover",waterNeeds:"medium",deerResistant:true,evergreen:true,nativeToNorthAmerica:false,description:"Reliable evergreen groundcover with periwinkle-blue flowers; very adaptable but can be invasive."},
+{id:63,name:"Liriope",botanical:"Liriope muscari",type:"groundcover",zones:[5,6,7,8,9,10],sun:["full-sun","partial-shade","full-shade"],climate:["temperate","humid-subtropical"],flowerColors:["lavender","purple"],size:"ground-cover",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:false,description:"Extremely tough evergreen grass-like plant; excellent edging or groundcover in sun or shade."},
+{id:64,name:"Wild Strawberry",botanical:"Fragaria virginiana",type:"groundcover",zones:[3,4,5,6,7,8],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["white"],size:"ground-cover",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Native groundcover producing small but intensely flavorful wild strawberries; spreads by runners."},
+{id:65,name:"Virginia Creeper",botanical:"Parthenocissus quinquefolia",type:"vine",zones:[3,4,5,6,7,8,9,10],sun:["full-sun","partial-shade","full-shade"],climate:["temperate","continental","humid-subtropical"],flowerColors:["none"],size:"large",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native vigorous vine with five-leaflet leaves turning brilliant scarlet in fall; excellent wildlife habitat."},
+{id:66,name:"Trumpet Vine",botanical:"Campsis radicans",type:"vine",zones:[4,5,6,7,8,9,10],sun:["full-sun"],climate:["temperate","humid-subtropical"],flowerColors:["orange","red"],size:"large",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native vine with flamboyant orange-red trumpet flowers beloved by hummingbirds; very vigorous spreader."},
+{id:67,name:"Wisteria",botanical:"Wisteria frutescens",type:"vine",zones:[5,6,7,8,9],sun:["full-sun"],climate:["temperate","humid-subtropical"],flowerColors:["lavender","purple"],size:"large",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Native American wisteria with fragrant lavender flower clusters; less invasive than Asian species."},
+{id:68,name:"Climbing Hydrangea",botanical:"Hydrangea anomala petiolaris",type:"vine",zones:[4,5,6,7,8],sun:["partial-shade","full-shade"],climate:["temperate","continental"],flowerColors:["white"],size:"large",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:false,description:"Shade-tolerant vine with spectacular flat-topped white flower clusters; clings to walls by aerial roots."},
+{id:69,name:"Passion Flower",botanical:"Passiflora incarnata",type:"vine",zones:[5,6,7,8,9,10],sun:["full-sun","partial-shade"],climate:["temperate","humid-subtropical"],flowerColors:["lavender","purple"],size:"medium",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Native vine with exotic-looking flowers and edible passion fruit; host plant for Gulf Fritillary butterfly."},
+{id:70,name:"Moonflower",botanical:"Ipomoea alba",type:"vine",zones:[9,10,11],sun:["full-sun"],climate:["tropical","humid-subtropical"],flowerColors:["white"],size:"large",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:false,description:"Tropical vine with huge fragrant white flowers that open in the evening; usually grown as annual."},
+{id:71,name:"Marigold",botanical:"Tagetes patula",type:"annual",zones:[1,2,3,4,5,6,7,8,9,10,11],sun:["full-sun"],climate:["temperate","tropical","humid-subtropical","continental"],flowerColors:["yellow","orange","red"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Classic cottage garden annual with pungent foliage that deters pests; blooms nonstop all summer."},
+{id:72,name:"Zinnia",botanical:"Zinnia elegans",type:"annual",zones:[1,2,3,4,5,6,7,8,9,10,11],sun:["full-sun"],climate:["temperate","continental","humid-subtropical"],flowerColors:["red","pink","orange","yellow","white","purple","lavender"],size:"small",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Heat-loving annual with brilliantly colored flowers; easy to grow from seed and attracts butterflies."},
+{id:73,name:"Sunflower",botanical:"Helianthus annuus",type:"annual",zones:[1,2,3,4,5,6,7,8,9,10,11],sun:["full-sun"],climate:["temperate","continental","arid"],flowerColors:["yellow","orange","red"],size:"medium",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Iconic tall annual with large seed-filled heads; excellent for pollinators and birds."},
+{id:74,name:"Cosmos",botanical:"Cosmos bipinnatus",type:"annual",zones:[1,2,3,4,5,6,7,8,9,10,11],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["pink","white","purple","lavender"],size:"medium",waterNeeds:"low",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Feathery-leaved annual with delicate daisy-like flowers; thrives in poor soils and blooms until frost."},
+{id:75,name:"Petunia",botanical:"Petunia x hybrida",type:"annual",zones:[1,2,3,4,5,6,7,8,9,10,11],sun:["full-sun"],climate:["temperate","continental","mediterranean"],flowerColors:["pink","purple","red","white","lavender"],size:"small",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:false,description:"Popular annual with trumpet-shaped flowers in many colors; excellent for containers and window boxes."},
+{id:76,name:"Impatiens",botanical:"Impatiens walleriana",type:"annual",zones:[1,2,3,4,5,6,7,8,9,10,11],sun:["partial-shade","full-shade"],climate:["tropical","temperate"],flowerColors:["red","pink","white","orange","lavender"],size:"small",waterNeeds:"high",deerResistant:false,evergreen:false,nativeToNorthAmerica:false,description:"Classic shade annual that produces masses of flowers all season; needs consistent moisture."},
+{id:77,name:"Coleus",botanical:"Plectranthus scutellarioides",type:"annual",zones:[1,2,3,4,5,6,7,8,9,10,11],sun:["partial-shade","full-shade","full-sun"],climate:["tropical","temperate"],flowerColors:["none"],size:"small",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:false,description:"Grown for its spectacular foliage in combinations of red, orange, yellow, and green; easy summer annual."},
+{id:78,name:"Snapdragon",botanical:"Antirrhinum majus",type:"annual",zones:[7,8,9,10,11],sun:["full-sun"],climate:["mediterranean","temperate"],flowerColors:["red","pink","orange","yellow","white","purple"],size:"small",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:false,description:"Cool-season annual with spikes of dragon-faced flowers; excellent in fall and spring gardens."},
+{id:79,name:"Tulip",botanical:"Tulipa spp.",type:"bulb",zones:[3,4,5,6,7,8],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["red","pink","orange","yellow","white","purple"],size:"small",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:false,description:"Classic spring-blooming bulb in a rainbow of colors; plant in fall for stunning spring displays."},
+{id:80,name:"Daffodil",botanical:"Narcissus spp.",type:"bulb",zones:[3,4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["yellow","white","orange"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Cheerful spring bulb that naturalizes over time; deer and rodent resistant, unlike tulips."},
+{id:81,name:"Allium",botanical:"Allium giganteum",type:"bulb",zones:[4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["purple","lavender"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Ornamental onion with dramatic globe-shaped purple flower heads atop tall stalks; pollinators love them."},
+{id:82,name:"Camassia",botanical:"Camassia leichtlinii",type:"bulb",zones:[3,4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["blue","purple","white"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native spring bulb with tall spikes of blue or white star-shaped flowers; naturalizes in moist meadows."},
+{id:83,name:"Canna Lily",botanical:"Canna x generalis",type:"bulb",zones:[7,8,9,10,11],sun:["full-sun"],climate:["tropical","humid-subtropical"],flowerColors:["red","orange","yellow","pink"],size:"large",waterNeeds:"high",deerResistant:false,evergreen:false,nativeToNorthAmerica:false,description:"Tropical rhizome with bold foliage and showy flowers; provides dramatic vertical accent in summer beds."},
+{id:84,name:"Crocosmia",botanical:"Crocosmia x crocosmiiflora",type:"bulb",zones:[5,6,7,8,9,10],sun:["full-sun","partial-shade"],climate:["temperate","mediterranean"],flowerColors:["orange","red","yellow"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Arching stems with bright orange-red tubular flowers in summer; spreads to form large clumps."},
+{id:85,name:"Autumn Crocus",botanical:"Colchicum autumnale",type:"bulb",zones:[4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["pink","lavender","white"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Unique bulb that blooms in fall with crocus-like flowers appearing without any foliage."},
+{id:86,name:"Agave",botanical:"Agave americana",type:"perennial",zones:[8,9,10,11],sun:["full-sun"],climate:["arid","mediterranean"],flowerColors:["yellow"],size:"large",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Dramatic succulent rosette with sharp-tipped leaves; flowers once after many years then dies."},
+{id:87,name:"Prickly Pear",botanical:"Opuntia humifusa",type:"perennial",zones:[4,5,6,7,8,9,10,11],sun:["full-sun"],climate:["arid","temperate","continental"],flowerColors:["yellow"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Cold-hardy native cactus with showy yellow flowers and edible red fruit; excellent for dry gardens."},
+{id:88,name:"Yucca",botanical:"Yucca filamentosa",type:"perennial",zones:[4,5,6,7,8,9,10,11],sun:["full-sun"],climate:["arid","temperate","continental"],flowerColors:["white"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Bold native perennial with sword-like leaves and tall stalks of white bell flowers; extremely drought tolerant."},
+{id:89,name:"Muhly Grass",botanical:"Muhlenbergia capillaris",type:"grass",zones:[5,6,7,8,9,10,11],sun:["full-sun"],climate:["temperate","humid-subtropical"],flowerColors:["pink","purple"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native grass producing spectacular pink-purple cloud-like plumes in fall; outstanding specimen plant."},
+{id:90,name:"Prairie Dropseed",botanical:"Sporobolus heterolepis",type:"grass",zones:[3,4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["none"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Fine-textured native grass forming neat arching clumps with fragrant seedheads; good fall color."},
+{id:91,name:"Feather Reed Grass",botanical:"Calamagrostis x acutiflora",type:"grass",zones:[4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["none"],size:"medium",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Strongly vertical grass with upright feathery plumes; outstanding four-season interest."},
+{id:92,name:"Japanese Forest Grass",botanical:"Hakonechloa macra",type:"grass",zones:[4,5,6,7,8,9],sun:["partial-shade","full-shade"],climate:["temperate","continental"],flowerColors:["none"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Graceful cascading grass with golden or green-and-gold striped leaves; perfect for shade gardens."},
+{id:93,name:"Thread-Leaf Bluestar",botanical:"Amsonia hubrichtii",type:"perennial",zones:[4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["blue","lavender"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native perennial with star-shaped blue flowers in spring and feathery foliage turning brilliant gold in fall."},
+{id:94,name:"Swamp Milkweed",botanical:"Asclepias incarnata",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["pink","red"],size:"medium",waterNeeds:"high",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native milkweed essential for monarch butterfly larvae; pink flowers attract many other pollinators."},
+{id:95,name:"Butterfly Weed",botanical:"Asclepias tuberosa",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental","arid"],flowerColors:["orange","yellow"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Brilliant orange native milkweed that requires excellent drainage; a top host plant for monarch butterflies."},
+{id:96,name:"Wild Bergamot",botanical:"Monarda fistulosa",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["lavender","pink","purple"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native prairie perennial with shaggy lavender flowers; more drought tolerant than scarlet bee balm."},
+{id:97,name:"Prairie Smoke",botanical:"Geum triflorum",type:"perennial",zones:[3,4,5,6,7],sun:["full-sun"],climate:["continental","temperate"],flowerColors:["pink","red"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native prairie plant with nodding pink flowers and distinctive feathery smoke-like seed plumes."},
+{id:98,name:"Solomon's Seal",botanical:"Polygonatum odoratum",type:"perennial",zones:[3,4,5,6,7,8],sun:["partial-shade","full-shade"],climate:["temperate","continental"],flowerColors:["white"],size:"medium",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Elegant shade perennial with arching stems, dangling white flowers, and good fall color."},
+{id:99,name:"Trout Lily",botanical:"Erythronium americanum",type:"perennial",zones:[3,4,5,6,7],sun:["partial-shade","full-shade"],climate:["temperate","continental"],flowerColors:["yellow"],size:"ground-cover",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Native spring ephemeral with mottled leaves and nodding yellow flowers; colonizes into drifts over time."},
+{id:100,name:"Mexican Sage",botanical:"Salvia leucantha",type:"perennial",zones:[8,9,10,11],sun:["full-sun"],climate:["arid","mediterranean","tropical"],flowerColors:["purple","lavender","white"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Showy soft-stemmed sage with velvety purple flower spikes from summer to frost; beloved by hummingbirds."},
+{id:101,name:"Texas Ranger",botanical:"Leucophyllum frutescens",type:"shrub",zones:[7,8,9,10,11],sun:["full-sun"],climate:["arid"],flowerColors:["purple","pink","lavender"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Drought-tolerant native shrub that bursts into purple bloom after desert rains; silvery gray foliage."},
+{id:102,name:"Apache Plume",botanical:"Fallugia paradoxa",type:"shrub",zones:[4,5,6,7,8,9,10],sun:["full-sun"],climate:["arid","continental"],flowerColors:["white"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Desert shrub with white rose-like flowers followed by feathery pink seed plumes; very drought tolerant."},
+{id:103,name:"Manzanita",botanical:"Arctostaphylos manzanita",type:"shrub",zones:[7,8,9,10],sun:["full-sun"],climate:["mediterranean","arid"],flowerColors:["pink","white"],size:"large",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"California native with exquisite smooth red bark and clusters of bell-shaped flowers; supports many wildlife species."},
+{id:104,name:"Toyon",botanical:"Heteromeles arbutifolia",type:"shrub",zones:[8,9,10,11],sun:["full-sun","partial-shade"],climate:["mediterranean"],flowerColors:["white"],size:"large",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"California native with white flowers and brilliant red winter berries; the plant that inspired 'Hollywood.'"},
+{id:105,name:"Bluebeard",botanical:"Caryopteris incana",type:"shrub",zones:[5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["blue","lavender"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Late-summer shrub with clusters of true-blue flowers when little else is blooming; pollinator magnet."},
+{id:106,name:"Bottlebrush",botanical:"Callistemon citrinus",type:"shrub",zones:[8,9,10,11],sun:["full-sun"],climate:["mediterranean","humid-subtropical","tropical"],flowerColors:["red"],size:"large",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:false,description:"Striking evergreen with cylindrical red bottlebrush flower spikes that attract hummingbirds and butterflies."},
+{id:107,name:"Texas Sage",botanical:"Salvia greggii",type:"shrub",zones:[6,7,8,9,10],sun:["full-sun"],climate:["arid","mediterranean"],flowerColors:["red","pink","purple","white"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Prolific blooming sub-shrub with small aromatic leaves and bright flowers from spring to frost."},
+{id:108,name:"Spicebush",botanical:"Lindera benzoin",type:"shrub",zones:[4,5,6,7,8,9],sun:["partial-shade","full-shade"],climate:["temperate","continental","humid-subtropical"],flowerColors:["yellow"],size:"large",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native understory shrub with spicy fragrant twigs and bright red berries; host plant for spicebush swallowtail."},
+{id:109,name:"Nandina",botanical:"Nandina domestica",type:"shrub",zones:[6,7,8,9,10,11],sun:["full-sun","partial-shade","full-shade"],climate:["temperate","humid-subtropical"],flowerColors:["white"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:false,description:"Adaptable evergreen shrub with white flowers, red berries, and colorful foliage; caution — mildly toxic."},
+{id:110,name:"Witch Hazel",botanical:"Hamamelis virginiana",type:"shrub",zones:[3,4,5,6,7,8,9],sun:["partial-shade","full-sun"],climate:["temperate","continental"],flowerColors:["yellow"],size:"large",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native shrub with fragrant yellow ribbon-like flowers blooming in fall to winter; outstanding fall color."},
+{id:111,name:"Sweetshrub",botanical:"Calycanthus floridus",type:"shrub",zones:[4,5,6,7,8,9],sun:["partial-shade","full-sun"],climate:["temperate","humid-subtropical"],flowerColors:["red","purple"],size:"medium",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native shrub with intensely fragrant burgundy-maroon flowers with a strawberry-vanilla scent."},
+{id:112,name:"Wild Azalea",botanical:"Rhododendron canescens",type:"shrub",zones:[5,6,7,8,9],sun:["partial-shade"],climate:["temperate","humid-subtropical"],flowerColors:["pink","white"],size:"large",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Native deciduous azalea with fragrant pink flowers before leaves emerge; stunning naturalized in the woodland."},
+{id:113,name:"Flame Azalea",botanical:"Rhododendron calendulaceum",type:"shrub",zones:[5,6,7,8],sun:["partial-shade"],climate:["temperate"],flowerColors:["orange","red","yellow"],size:"large",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Spectacular native azalea with fiery orange-to-red flowers; one of the showiest native shrubs in North America."},
+{id:114,name:"Elderberry",botanical:"Sambucus canadensis",type:"shrub",zones:[3,4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["white"],size:"large",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Fast-growing native shrub with fragrant white flower clusters and edible dark berries used for elderberry syrup."},
+{id:115,name:"Serviceberry",botanical:"Amelanchier arborea",type:"tree",zones:[3,4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["white"],size:"large",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Native four-season tree with white spring flowers, edible summer berries, and brilliant fall foliage."},
+{id:116,name:"Hawthorn",botanical:"Crataegus viridis",type:"tree",zones:[4,5,6,7,8],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["white"],size:"large",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Tough native small tree with white flowers, red berries, and excellent wildlife value; thorny branches."},
+{id:117,name:"American Holly",botanical:"Ilex opaca",type:"tree",zones:[5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","humid-subtropical"],flowerColors:["white"],size:"tree",waterNeeds:"medium",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Classic American evergreen tree with spiny leaves and brilliant red berries providing winter wildlife food."},
+{id:118,name:"Fringe Tree",botanical:"Chionanthus virginicus",type:"tree",zones:[3,4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental","humid-subtropical"],flowerColors:["white"],size:"large",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:true,description:"Native small tree with extraordinary white fringe-like flower clusters in spring; very adaptable."},
+{id:119,name:"Ironweed",botanical:"Vernonia noveboracensis",type:"perennial",zones:[4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental","humid-subtropical"],flowerColors:["purple"],size:"large",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Tall native perennial with intensely purple flowers in late summer; exceptional pollinator and butterfly plant."},
+{id:120,name:"Goldenrod",botanical:"Solidago rugosa",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental","humid-subtropical"],flowerColors:["yellow"],size:"medium",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native perennial with arching plumes of golden flowers in fall; unfairly blamed for allergies (it's insect-pollinated)."},
+{id:121,name:"Cup Plant",botanical:"Silphium perfoliatum",type:"perennial",zones:[4,5,6,7,8],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["yellow"],size:"large",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Massive native prairie plant with square stems and cup-shaped leaf pairs that hold water for birds."},
+{id:122,name:"Wild Bergamot",botanical:"Monarda fistulosa",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","continental","arid"],flowerColors:["lavender","pink"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native prairie perennial with shaggy lavender flowers attracting a wide diversity of pollinators."},
+{id:123,name:"Meadow Blazingstar",botanical:"Liatris ligulistylis",type:"perennial",zones:[3,4,5,6,7,8],sun:["full-sun"],climate:["continental","temperate"],flowerColors:["purple","pink"],size:"medium",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Most monarch-attractive native plant; produces large vivid purple flower heads loved by migrating monarchs."},
+{id:124,name:"Fernleaf Bleeding Heart",botanical:"Dicentra eximia",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["partial-shade","full-shade"],climate:["temperate","continental"],flowerColors:["pink","red"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native bleeding heart that blooms spring through fall with ferny foliage; excellent shade perennial."},
+{id:125,name:"Plumbago",botanical:"Ceratostigma plumbaginoides",type:"groundcover",zones:[5,6,7,8,9,10],sun:["full-sun","partial-shade"],climate:["temperate","mediterranean"],flowerColors:["blue"],size:"ground-cover",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Low spreading perennial with vivid cobalt-blue flowers and brilliant red fall foliage; long bloom season."},
+{id:126,name:"Hardy Geranium",botanical:"Geranium sanguineum",type:"perennial",zones:[3,4,5,6,7,8],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["pink","purple","white"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Long-blooming perennial geranium with magenta-pink flowers and deeply cut foliage turning red in fall."},
+{id:127,name:"Ice Plant",botanical:"Delosperma cooperi",type:"groundcover",zones:[5,6,7,8,9,10],sun:["full-sun"],climate:["arid","mediterranean"],flowerColors:["pink","purple","yellow","orange"],size:"ground-cover",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:false,description:"Succulent groundcover with glistening jewel-bright flowers; extremely drought tolerant."},
+{id:128,name:"Bougainvillea",botanical:"Bougainvillea spectabilis",type:"vine",zones:[9,10,11],sun:["full-sun"],climate:["tropical","mediterranean"],flowerColors:["pink","orange","purple","red","white"],size:"large",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:false,description:"Spectacular tropical vine with brilliant papery bracts in vivid colors; a hallmark of warm-climate gardens."},
+{id:129,name:"Confederate Jasmine",botanical:"Trachelospermum jasminoides",type:"vine",zones:[7,8,9,10,11],sun:["full-sun","partial-shade"],climate:["humid-subtropical","mediterranean"],flowerColors:["white"],size:"large",waterNeeds:"medium",deerResistant:true,evergreen:true,nativeToNorthAmerica:false,description:"Evergreen vine with intensely fragrant white pinwheel flowers in spring; excellent on fences or as groundcover."},
+{id:130,name:"Crossvine",botanical:"Bignonia capreolata",type:"vine",zones:[5,6,7,8,9,10],sun:["full-sun","partial-shade"],climate:["temperate","humid-subtropical"],flowerColors:["orange","red","yellow"],size:"large",waterNeeds:"medium",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Native semi-evergreen vine with tubular orange-red flowers in spring; hummingbird magnet."},
+{id:131,name:"Coral Honeysuckle",botanical:"Lonicera sempervirens",type:"vine",zones:[4,5,6,7,8,9],sun:["full-sun","partial-shade"],climate:["temperate","humid-subtropical"],flowerColors:["red","orange"],size:"medium",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native non-invasive honeysuckle with scarlet tubular flowers; top hummingbird vine for eastern gardens."},
+{id:132,name:"Blue Star Juniper",botanical:"Juniperus squamata 'Blue Star'",type:"shrub",zones:[4,5,6,7,8],sun:["full-sun"],climate:["temperate","continental"],flowerColors:["none"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:true,nativeToNorthAmerica:false,description:"Compact mounded evergreen conifer with striking steel-blue prickly foliage; excellent in rock gardens."},
+{id:133,name:"Hinoki Cypress",botanical:"Chamaecyparis obtusa",type:"shrub",zones:[4,5,6,7,8],sun:["full-sun","partial-shade"],climate:["temperate","continental"],flowerColors:["none"],size:"large",waterNeeds:"medium",deerResistant:true,evergreen:true,nativeToNorthAmerica:false,description:"Elegant Japanese conifer with layered fan-like dark green foliage; available in many dwarf forms."},
+{id:134,name:"Colorado Blue Columbine",botanical:"Aquilegia caerulea",type:"perennial",zones:[3,4,5,6,7,8],sun:["full-sun","partial-shade"],climate:["continental","temperate"],flowerColors:["blue","white","lavender"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"State flower of Colorado with large blue-and-white spurred flowers; excellent at altitude."},
+{id:135,name:"Blanket Flower",botanical:"Gaillardia x grandiflora",type:"perennial",zones:[3,4,5,6,7,8,9,10],sun:["full-sun"],climate:["temperate","continental","arid"],flowerColors:["red","orange","yellow"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Heat and drought tolerant native-hybrid with vibrant red-and-yellow daisy flowers from summer to frost."},
+{id:136,name:"Prairie Coneflower",botanical:"Ratibida columnifera",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun"],climate:["continental","temperate","arid"],flowerColors:["yellow","red","orange"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native prairie plant with uniquely elongated centers and drooping yellow petals; very drought tolerant."},
+{id:137,name:"Dutchman's Breeches",botanical:"Dicentra cucullaria",type:"perennial",zones:[3,4,5,6,7],sun:["partial-shade","full-shade"],climate:["temperate","continental"],flowerColors:["white"],size:"ground-cover",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Charming spring ephemeral with lacy blue-green foliage and white pant-shaped flowers; dormant by summer."},
+{id:138,name:"Celandine Poppy",botanical:"Stylophorum diphyllum",type:"perennial",zones:[4,5,6,7,8],sun:["partial-shade","full-shade"],climate:["temperate","continental"],flowerColors:["yellow"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Native woodland perennial with bright yellow poppy flowers and deeply lobed blue-green leaves."},
+{id:139,name:"Toad Lily",botanical:"Tricyrtis hirta",type:"perennial",zones:[4,5,6,7,8,9],sun:["partial-shade","full-shade"],climate:["temperate","continental"],flowerColors:["purple","white","lavender"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Exotic-looking orchid-like flowers in fall on arching stems; one of the best shade perennials for fall interest."},
+{id:140,name:"Astilbe",botanical:"Astilbe x arendsii",type:"perennial",zones:[3,4,5,6,7,8],sun:["partial-shade","full-shade"],climate:["temperate","continental"],flowerColors:["pink","red","white","lavender","purple"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Essential shade perennial with feathery flower plumes in summer and handsome foliage; loves moisture."},
+{id:141,name:"Ferns (Mixed)",botanical:"Dryopteris spp.",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["partial-shade","full-shade"],climate:["temperate","continental"],flowerColors:["none"],size:"medium",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Graceful native ferns providing lush texture to shaded areas; many species for varied conditions."},
+{id:142,name:"Christmas Fern",botanical:"Polystichum acrostichoides",type:"groundcover",zones:[3,4,5,6,7,8,9],sun:["partial-shade","full-shade"],climate:["temperate","continental","humid-subtropical"],flowerColors:["none"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:true,nativeToNorthAmerica:true,description:"Reliable native evergreen fern; one of the few ferns with winter interest, staying green through the cold."},
+{id:143,name:"Cinnamon Fern",botanical:"Osmundastrum cinnamomeum",type:"perennial",zones:[3,4,5,6,7,8,9,10],sun:["partial-shade","full-shade"],climate:["temperate","continental","humid-subtropical"],flowerColors:["none"],size:"medium",waterNeeds:"high",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Stunning native fern with large fronds and cinnamon-colored fertile stalks; excellent for wet shade."},
+{id:144,name:"Lanceleaf Coreopsis",botanical:"Coreopsis lanceolata",type:"perennial",zones:[3,4,5,6,7,8,9],sun:["full-sun"],climate:["temperate","continental","humid-subtropical"],flowerColors:["yellow"],size:"small",waterNeeds:"low",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Long-blooming native wildflower with bright yellow daisy blooms; excellent for naturalizing in sunny areas."},
+{id:145,name:"Prairie Blazingstar",botanical:"Liatris pycnostachya",type:"perennial",zones:[3,4,5,6,7,8],sun:["full-sun"],climate:["continental","temperate"],flowerColors:["purple","pink"],size:"medium",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:true,description:"Tall native blazingstar with dense purple flower spikes; excellent in prairie gardens and monarch gardens."},
+{id:146,name:"Creeping Jenny",botanical:"Lysimachia nummularia",type:"groundcover",zones:[3,4,5,6,7,8,9],sun:["partial-shade","full-sun","full-shade"],climate:["temperate","continental"],flowerColors:["yellow"],size:"ground-cover",waterNeeds:"medium",deerResistant:false,evergreen:true,nativeToNorthAmerica:false,description:"Vigorous groundcover with round golden-chartreuse leaves and yellow flowers; spreads quickly in moist areas."},
+{id:147,name:"Sensitive Plant",botanical:"Mimosa pudica",type:"annual",zones:[9,10,11],sun:["full-sun"],climate:["tropical"],flowerColors:["pink"],size:"small",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:false,description:"Fascinating tropical annual with leaves that fold when touched; pink pompom flowers attract bees."},
+{id:148,name:"Mexican Sunflower",botanical:"Tithonia rotundifolia",type:"annual",zones:[1,2,3,4,5,6,7,8,9,10,11],sun:["full-sun"],climate:["tropical","temperate"],flowerColors:["orange"],size:"large",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Tall vigorous annual with brilliant orange daisy flowers; exceptional for butterflies and hummingbirds."},
+{id:149,name:"Toothache Plant",botanical:"Acmella oleracea",type:"annual",zones:[9,10,11],sun:["full-sun","partial-shade"],climate:["tropical"],flowerColors:["yellow","orange"],size:"small",waterNeeds:"medium",deerResistant:false,evergreen:false,nativeToNorthAmerica:false,description:"Unusual annual with orange-and-yellow button flowers that tingle the tongue; used medicinally."},
+{id:150,name:"Four O'Clock",botanical:"Mirabilis jalapa",type:"annual",zones:[7,8,9,10,11],sun:["full-sun","partial-shade"],climate:["tropical","humid-subtropical"],flowerColors:["pink","red","yellow","white","orange"],size:"small",waterNeeds:"medium",deerResistant:true,evergreen:false,nativeToNorthAmerica:false,description:"Fragrant tubular flowers that open in late afternoon; often has multiple flower colors on the same plant."}
+];
+
+// ---- State ----
+let activeFilters = {};
+let searchTerm = '';
+
+// ---- Build zone checkboxes ----
+const zoneContainer = document.getElementById('zone-filters');
+for (let z = 3; z <= 11; z++) {
+  const id = `zone-${z}`;
+  zoneContainer.innerHTML += `<input type="checkbox" class="filter-cb" id="${id}" data-filter="zones" data-val="${z}"><label class="filter-label" for="${id}">Z${z}</label>`;
+}
+
+// ---- Event listeners ----
+document.querySelectorAll('.filter-cb').forEach(cb => {
+  cb.addEventListener('change', applyFilters);
+});
+
+function getActiveFilters() {
+  const filters = {};
+  document.querySelectorAll('.filter-cb:checked').forEach(cb => {
+    const key = cb.dataset.filter;
+    if (!filters[key]) filters[key] = [];
+    filters[key].push(cb.dataset.val);
+  });
+  return filters;
+}
+
+function matchesFilters(plant, filters) {
+  for (const [key, vals] of Object.entries(filters)) {
+    if (key === 'zones') {
+      if (!vals.some(v => plant.zones.includes(parseInt(v)))) return false;
+    } else if (key === 'sun') {
+      if (!vals.some(v => plant.sun.includes(v))) return false;
+    } else if (key === 'climate') {
+      if (!vals.some(v => plant.climate.includes(v))) return false;
+    } else if (key === 'flowerColors') {
+      if (!vals.some(v => plant.flowerColors.includes(v))) return false;
+    } else if (key === 'type') {
+      if (!vals.includes(plant.type)) return false;
+    } else if (key === 'size') {
+      if (!vals.includes(plant.size)) return false;
+    } else if (key === 'waterNeeds') {
+      if (!vals.includes(plant.waterNeeds)) return false;
+    } else if (key === 'extras') {
+      for (const ev of vals) {
+        if (ev === 'deer' && !plant.deerResistant) return false;
+        if (ev === 'evergreen' && !plant.evergreen) return false;
+        if (ev === 'native' && !plant.nativeToNorthAmerica) return false;
+      }
+    }
+  }
+  return true;
+}
+
+function applyFilters() {
+  const filters = getActiveFilters();
+  searchTerm = document.getElementById('search-box').value.toLowerCase().trim();
+  const sortBy = document.getElementById('sort-sel').value;
+
+  let results = PLANTS.filter(p => {
+    if (searchTerm && !p.name.toLowerCase().includes(searchTerm) && !p.botanical.toLowerCase().includes(searchTerm)) return false;
+    return matchesFilters(p, filters);
+  });
+
+  if (sortBy === 'name') {
+    results.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (sortBy === 'zone') {
+    results.sort((a, b) => Math.min(...a.zones) - Math.min(...b.zones));
+  } else if (sortBy === 'type') {
+    results.sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
+  }
+
+  renderResults(results);
+  renderActiveTags(filters);
+  updateCount(results.length);
+}
+
+const COLOR_HEX = {red:'#e53935',pink:'#e91e63',orange:'#ff6f00',yellow:'#fdd835',white:'#f0f0f0',purple:'#7b1fa2',blue:'#1565c0',lavender:'#9575cd',none:'#bdbdbd'};
+const SUN_ICON = {'full-sun':'☀️','partial-shade':'⛅','full-shade':'🌒'};
+const WATER_ICON = {low:'💧',medium:'💧💧',high:'💧💧💧'};
+const SIZE_LABEL = {'ground-cover':'<1ft','small':'1-3ft','medium':'3-8ft','large':'8-20ft','tree':'20ft+'};
+const TYPE_EMOJI = {tree:'🌳',shrub:'🌿',perennial:'🌸',annual:'🌼',grass:'🌾',vine:'🍃',groundcover:'🍀',bulb:'🌷'};
+
+// Wikipedia image cache
+const imgCache = new Map();
+
+async function fetchWikiImage(botanical) {
+  if (imgCache.has(botanical)) return imgCache.get(botanical);
+  const title = botanical.split(' ').slice(0,2).join('_');
+  try {
+    const r = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&format=json&pithumbsize=400&origin=*`);
+    const d = await r.json();
+    const page = Object.values(d.query.pages)[0];
+    const src = page?.thumbnail?.source || null;
+    imgCache.set(botanical, src);
+    return src;
+  } catch { imgCache.set(botanical, null); return null; }
+}
+
+function loadVisibleImages() {
+  document.querySelectorAll('.card-img[data-src]').forEach(img => {
+    const wrap = img.closest('.card-img-wrap');
+    const rect = wrap.getBoundingClientRect();
+    if (rect.top < window.innerHeight + 200) {
+      const botanical = img.dataset.src;
+      delete img.dataset.src;
+      fetchWikiImage(botanical).then(src => {
+        if (src) {
+          img.onload = () => { img.classList.add('loaded'); };
+          img.src = src;
+        }
+      });
+    }
+  });
+}
+
+function renderResults(plants) {
+  const grid = document.getElementById('grid');
+  const noRes = document.getElementById('no-results');
+  if (!plants.length) {
+    grid.innerHTML = '';
+    noRes.style.display = 'block';
+    return;
+  }
+  noRes.style.display = 'none';
+  grid.innerHTML = plants.map(p => {
+    const minZ = Math.min(...p.zones), maxZ = Math.max(...p.zones);
+    const zoneStr = minZ === maxZ ? `Zone ${minZ}` : `Zones ${minZ}–${maxZ}`;
+    const colors = p.flowerColors.map(c => `<span class="color-dot" style="background:${COLOR_HEX[c]}" title="${c}"></span>`).join('');
+    const sunIcons = p.sun.map(s => SUN_ICON[s]).join(' ');
+    const cachedSrc = imgCache.get(p.botanical);
+    const imgAttr = cachedSrc ? `src="${cachedSrc}" class="card-img loaded"` : `data-src="${p.botanical}" class="card-img"`;
+    return `<div class="card">
+  <div class="card-img-wrap">
+    <img ${imgAttr} alt="${p.name}">
+    <div class="card-img-placeholder${cachedSrc ? ' hidden' : ''}">${TYPE_EMOJI[p.type] || '🌿'}</div>
+  </div>
+  <div class="card-top">
+    <div class="card-name">${p.name}</div>
+    <div class="card-botanical">${p.botanical}</div>
+    <div class="card-badges">
+      <span class="badge badge-type">${p.type}</span>
+      ${p.deerResistant ? '<span class="badge badge-deer">🦌 Deer Resistant</span>' : ''}
+      ${p.nativeToNorthAmerica ? '<span class="badge badge-native">🇺🇸 Native</span>' : ''}
+      ${p.evergreen ? '<span class="badge badge-evergreen">🌲 Evergreen</span>' : ''}
+    </div>
+    <div class="card-meta">
+      <span class="meta-item">📍 ${zoneStr}</span>
+      <span class="meta-item">${sunIcons}</span>
+      <span class="meta-item">📏 ${SIZE_LABEL[p.size]}</span>
+      <span class="meta-item">${WATER_ICON[p.waterNeeds]}</span>
+    </div>
+    ${p.flowerColors[0] !== 'none' ? `<div class="card-colors" style="margin-bottom:8px">${colors}<span style="font-size:0.72rem;color:#888;margin-left:4px">${p.flowerColors.join(', ')}</span></div>` : ''}
+  </div>
+  <div class="card-desc">${p.description}</div>
+</div>`;
+  }).join('');
+  // Load images in viewport immediately, then on scroll
+  loadVisibleImages();
+}
+
+function updateCount(n) {
+  document.getElementById('match-count').textContent = `${n} plant${n !== 1 ? 's' : ''} match your filters`;
+  document.getElementById('results-count').textContent = `Showing ${n} of ${PLANTS.length} plants`;
+}
+
+const FILTER_LABELS = {
+  zones: v => `Zone ${v}`,
+  sun: v => ({'full-sun':'Full Sun','partial-shade':'Partial Shade','full-shade':'Full Shade'}[v] || v),
+  climate: v => v.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+  flowerColors: v => v.charAt(0).toUpperCase() + v.slice(1),
+  type: v => v.charAt(0).toUpperCase() + v.slice(1),
+  size: v => ({'ground-cover':'Ground Cover','small':'Small','medium':'Medium','large':'Large','tree':'Tree 20ft+'}[v]),
+  waterNeeds: v => ({'low':'Low Water','medium':'Medium Water','high':'High Water'}[v]),
+  extras: v => ({'deer':'Deer Resistant','evergreen':'Evergreen','native':'Native to NA'}[v])
+};
+
+function renderActiveTags(filters) {
+  const container = document.getElementById('active-tags');
+  const tags = [];
+  for (const [key, vals] of Object.entries(filters)) {
+    vals.forEach(v => {
+      tags.push(`<span class="tag">${FILTER_LABELS[key](v)}<span class="tag-x" onclick="removeFilter('${key}','${v}')">✕</span></span>`);
+    });
+  }
+  container.innerHTML = tags.join('');
+}
+
+function removeFilter(key, val) {
+  const cb = document.querySelector(`.filter-cb[data-filter="${key}"][data-val="${val}"]`);
+  if (cb) { cb.checked = false; applyFilters(); }
+}
+
+function clearAll() {
+  document.querySelectorAll('.filter-cb').forEach(cb => cb.checked = false);
+  document.getElementById('search-box').value = '';
+  applyFilters();
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// Scroll-based lazy loading
+document.getElementById('main').addEventListener('scroll', loadVisibleImages, {passive: true});
+
+// Init
+applyFilters();
+</script>
+</body>
+</html>
